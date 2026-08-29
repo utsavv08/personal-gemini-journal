@@ -43,19 +43,19 @@ app.use(express.json({ limit: '1mb' }));
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.0.4-bulletproof', timestamp: new Date().toISOString(), candidateModels: CANDIDATE_MODELS });
+  res.json({ status: 'ok', version: '1.0.5-perfect', timestamp: new Date().toISOString(), candidateModels: CANDIDATE_MODELS });
 });
 
 /**
  * Multi-Turn AI Journaling Conversation Endpoint
  */
 app.post('/api/chat', requireAuth, async (req, res) => {
-  try {
-    const { messages } = req.body;
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: 'Missing or empty messages array' });
-    }
+  const messages = req.body?.messages;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'Missing or empty messages array' });
+  }
 
+  try {
     const apiKey = await getGeminiApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -112,13 +112,12 @@ Keep responses thoughtful, warm, concise, and focused on self-discovery. Ask ins
  * Automated Journal Summarization Endpoint
  */
 app.post('/api/summarize', requireAuth, async (req, res) => {
+  const { journalContent, chatHistory } = req.body || {};
+  if (!journalContent && (!chatHistory || chatHistory.length === 0)) {
+    return res.status(400).json({ error: 'No content provided to summarize' });
+  }
+
   try {
-    const { journalContent, chatHistory } = req.body;
-
-    if (!journalContent && (!chatHistory || chatHistory.length === 0)) {
-      return res.status(400).json({ error: 'No content provided to summarize' });
-    }
-
     const apiKey = await getGeminiApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -194,12 +193,12 @@ ${chatContext || '(No chat log)'}
  * Phase 3 Original Feature Enhancement: Cognitive Clarity & Mood Analytics Engine
  */
 app.post('/api/cognitive-insights', requireAuth, async (req, res) => {
-  try {
-    const { journalContent } = req.body;
-    if (!journalContent || journalContent.trim().length < 10) {
-      return res.status(400).json({ error: 'Journal content too short for analysis' });
-    }
+  const { journalContent } = req.body || {};
+  if (!journalContent || journalContent.trim().length < 10) {
+    return res.status(400).json({ error: 'Journal content too short for analysis' });
+  }
 
+  try {
     const apiKey = await getGeminiApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
 
