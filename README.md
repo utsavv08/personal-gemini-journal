@@ -2,7 +2,8 @@
 
 > Built for the **Google AI Studio Ideathon Challenge: Build a Secure "Personal Gemini Journal"**
 
-This application was engineered with a security-first posture, adhering to the enterprise-grade **"Security Constitution"** configured in Google AI Studio.
+🌐 **Live Deployed Application (Google Cloud Run):**  
+👉 **[https://personal-gemini-journal-541567487928.europe-west1.run.app/](https://personal-gemini-journal-541567487928.europe-west1.run.app/)**
 
 ---
 
