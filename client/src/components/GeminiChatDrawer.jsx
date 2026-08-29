@@ -43,7 +43,8 @@ export default function GeminiChatDrawer({ isOpen, onClose, user, onInsertToJour
 
     try {
       const token = await user.getIdToken();
-      const res = await fetch(`${backendUrl}/api/chat`, {
+      const baseUrl = backendUrl || '';
+      const res = await fetch(`${baseUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +54,9 @@ export default function GeminiChatDrawer({ isOpen, onClose, user, onInsertToJour
       });
 
       if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
+        let errData;
+        try { errData = await res.json(); } catch {}
+        throw new Error(errData?.details || errData?.error || `Server returned ${res.status}`);
       }
 
       const data = await res.json();
@@ -62,7 +65,7 @@ export default function GeminiChatDrawer({ isOpen, onClose, user, onInsertToJour
       console.error(err);
       setMessages([
         ...newMessages,
-        { role: 'model', content: "Sorry, I had trouble connecting to the backend. Please check that the server is running." }
+        { role: 'model', content: `Sorry, I had trouble: ${err.message || 'Unable to reach backend service.'}` }
       ]);
     } finally {
       setLoading(false);

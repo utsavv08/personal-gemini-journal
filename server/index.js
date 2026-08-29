@@ -12,14 +12,37 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 8080;
-const MODEL_NAME = 'gemini-3.6-flash';
+const CANDIDATE_MODELS = [
+  process.env.GEMINI_MODEL,
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash'
+].filter(Boolean);
+
+async function callWithModelFallback(genAI, modelOptions, callback) {
+  let lastError = null;
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ ...modelOptions, model: modelName });
+      return await callback(model, modelName);
+    } catch (err) {
+      console.warn(`[Gemini API] Failed with model ${modelName}:`, err.message);
+      lastError = err;
+      if (err.message && (err.message.includes('not found') || err.message.includes('404') || err.message.includes('is not supported') || err.message.includes('unknown model'))) {
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
 
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '1mb' }));
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), model: MODEL_NAME });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), candidateModels: CANDIDATE_MODELS });
 });
 
 /**
@@ -34,12 +57,6 @@ app.post('/api/chat', requireAuth, async (req, res) => {
 
     const apiKey = await getGeminiApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      systemInstruction: `You are an empathetic, insightful, and supportive AI Journaling Partner. 
-Your purpose is to help the user unpack their thoughts, explore feelings, brainstorm ideas, and gain clarity.
-Keep responses thoughtful, warm, concise, and focused on self-discovery. Ask insightful open-ended follow-up questions.`
-    });
 
     // Format chat history (exclude last message which is user prompt)
     let historyMessages = messages.slice(0, -1);
@@ -57,10 +74,20 @@ Keep responses thoughtful, warm, concise, and focused on self-discovery. Ask ins
 
     const lastMessage = messages[messages.length - 1].content;
 
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(lastMessage);
-    const response = await result.response;
-    const reply = response.text();
+    const reply = await callWithModelFallback(
+      genAI,
+      {
+        systemInstruction: `You are an empathetic, insightful, and supportive AI Journaling Partner. 
+Your purpose is to help the user unpack their thoughts, explore feelings, brainstorm ideas, and gain clarity.
+Keep responses thoughtful, warm, concise, and focused on self-discovery. Ask insightful open-ended follow-up questions.`
+      },
+      async (model) => {
+        const chat = model.startChat({ history });
+        const result = await chat.sendMessage(lastMessage);
+        const response = await result.response;
+        return response.text();
+      }
+    );
 
     res.json({ reply });
   } catch (error) {
@@ -82,10 +109,6 @@ app.post('/api/summarize', requireAuth, async (req, res) => {
 
     const apiKey = await getGeminiApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      generationConfig: { responseMimeType: 'application/json' }
-    });
 
     const chatContext = Array.isArray(chatHistory)
       ? chatHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')
@@ -114,9 +137,15 @@ CONVERSATION LOG:
 ${chatContext || '(No chat log)'}
 `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = await callWithModelFallback(
+      genAI,
+      { generationConfig: { responseMimeType: 'application/json' } },
+      async (model) => {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text();
+      }
+    );
 
     let resultJson;
     try {
@@ -145,10 +174,6 @@ app.post('/api/cognitive-insights', requireAuth, async (req, res) => {
 
     const apiKey = await getGeminiApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      generationConfig: { responseMimeType: 'application/json' }
-    });
 
     const prompt = `You are an expert cognitive behavioral wellness coach.
 Analyze the following personal journal reflection:
@@ -168,9 +193,15 @@ Extract cognitive wellness indicators and return ONLY valid JSON matching this s
 }
 `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = await callWithModelFallback(
+      genAI,
+      { generationConfig: { responseMimeType: 'application/json' } },
+      async (model) => {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text();
+      }
+    );
 
     let resultJson;
     try {
@@ -196,7 +227,7 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`[Personal Gemini Journal] Running on port ${PORT}`);
-  console.log(`[Model] Using ${MODEL_NAME}`);
+  console.log(`[Model] Candidate models: ${CANDIDATE_MODELS.join(', ')}`);
   console.log(`[Security] Cloud Secret Manager integration ready`);
   console.log(`[Auth] Firebase token verification active`);
 });

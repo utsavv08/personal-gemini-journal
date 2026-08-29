@@ -174,7 +174,11 @@ export default function App() {
         })
       });
 
-      if (!res.ok) throw new Error(`Summary failed with status ${res.status}`);
+      if (!res.ok) {
+        let errData;
+        try { errData = await res.json(); } catch {}
+        throw new Error(errData?.details || errData?.error || `Summary failed with status ${res.status}`);
+      }
       const summaryData = await res.json();
 
       // Update entry with summary and suggested title
@@ -222,7 +226,11 @@ export default function App() {
         })
       });
 
-      if (!res.ok) throw new Error(`Cognitive analysis failed with status ${res.status}`);
+      if (!res.ok) {
+        let errData;
+        try { errData = await res.json(); } catch {}
+        throw new Error(errData?.details || errData?.error || `Cognitive analysis failed with status ${res.status}`);
+      }
       const insightsData = await res.json();
 
       const updatedEntry = {

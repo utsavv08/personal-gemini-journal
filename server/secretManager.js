@@ -16,32 +16,31 @@ export async function getGeminiApiKey() {
     return cachedSecret;
   }
 
-  // Attempt Google Cloud Secret Manager retrieval if configured
-  const projectId = process.env.GCP_PROJECT_ID;
-  const secretName = process.env.GCP_SECRET_NAME || 'GEMINI_API_KEY';
-
-  if (projectId && process.env.USE_GCP_SECRET_MANAGER === 'true') {
-    try {
-      console.log(`[Security] Fetching secret ${secretName} from GCP Secret Manager...`);
-      const client = new SecretManagerServiceClient();
-      const name = `projects/${projectId}/secrets/${secretName}/versions/latest`;
-      const [version] = await client.accessSecretVersion({ name });
-      cachedSecret = version.payload?.data?.toString();
-      if (cachedSecret) {
-        console.log('[Security] Successfully retrieved Gemini API key from Secret Manager');
-        return cachedSecret;
-      }
-    } catch (err) {
-      console.warn('[Security Warning] Failed to fetch from GCP Secret Manager, using server environment fallback:', err.message);
-    }
-  }
-
-  // Local development / server-side environment fallback
+  // 1. Direct environment variable (Cloud Run env var or local .env)
   if (process.env.GEMINI_API_KEY) {
-    cachedSecret = process.env.GEMINI_API_KEY;
-    console.log('[Security] Using server-side protected GEMINI_API_KEY');
+    cachedSecret = process.env.GEMINI_API_KEY.trim();
+    console.log('[Security] Using GEMINI_API_KEY from environment variables');
     return cachedSecret;
   }
 
-  throw new Error('GEMINI_API_KEY is not configured in GCP Secret Manager or server environment.');
+  // 2. Google Cloud Secret Manager (Cloud Run production)
+  const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'gemini--journal-afe40';
+  const secretName = process.env.GCP_SECRET_NAME || 'GEMINI_API_KEY';
+
+  try {
+    console.log(`[Security] Fetching secret ${secretName} from GCP Secret Manager (project: ${projectId})...`);
+    const client = new SecretManagerServiceClient();
+    const name = `projects/${projectId}/secrets/${secretName}/versions/latest`;
+    const [version] = await client.accessSecretVersion({ name });
+    const secretData = version.payload?.data?.toString();
+    if (secretData) {
+      cachedSecret = secretData.trim();
+      console.log('[Security] Successfully retrieved Gemini API key from Secret Manager');
+      return cachedSecret;
+    }
+  } catch (err) {
+    console.warn('[Security Warning] Failed to fetch from GCP Secret Manager:', err.message);
+  }
+
+  throw new Error('GEMINI_API_KEY is not configured in environment variables or GCP Secret Manager.');
 }
