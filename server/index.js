@@ -43,7 +43,7 @@ app.use(express.json({ limit: '1mb' }));
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), candidateModels: CANDIDATE_MODELS });
+  res.json({ status: 'ok', version: '1.0.3-fallback', timestamp: new Date().toISOString(), candidateModels: CANDIDATE_MODELS });
 });
 
 /**
