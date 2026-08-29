@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Zero-Trust Default: Deny any unauthenticated or broad root access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Isolated user journal partition: Zero Cross-User Leakage
+    match /users/{userId}/journals/{journalId} {
+      // Only the authenticated user whose UID matches this path can read or delete
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+
+      // Only the user can create or update their own journal entries with schema validation
+      allow create, update: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.data.userId == userId
+        && request.resource.data.title is string
+        && request.resource.data.content is string;
+    }
+  }
+}
