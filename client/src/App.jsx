@@ -19,7 +19,7 @@ import JournalSidebar from './components/JournalSidebar';
 import JournalEditor from './components/JournalEditor';
 import GeminiChatDrawer from './components/GeminiChatDrawer';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 export default function App() {
   const [user, setUser] = useState(null);

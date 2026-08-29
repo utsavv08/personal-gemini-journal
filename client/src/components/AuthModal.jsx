@@ -31,7 +31,11 @@ export default function AuthModal({ isOpen, onClose }) {
       onClose();
     } catch (err) {
       console.error(err);
-      setError(err.message.replace('Firebase: ', ''));
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('Unauthorized Domain: If running locally, please open http://localhost:5173 instead of 127.0.0.1, or add this domain to Firebase Console -> Authentication -> Settings -> Authorized domains.');
+      } else {
+        setError(err.message.replace('Firebase: ', ''));
+      }
     } finally {
       setLoading(false);
     }
@@ -45,7 +49,15 @@ export default function AuthModal({ isOpen, onClose }) {
       onClose();
     } catch (err) {
       console.error(err);
-      setError(err.message.replace('Firebase: ', ''));
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('Unauthorized Domain: If running locally, open http://localhost:5173 instead of 127.0.0.1, or add your current domain to Firebase Console > Authentication > Settings > Authorized domains.');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('Sign-in popup was closed before completing.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Popup was blocked by your browser. Please allow popups for this site.');
+      } else {
+        setError(err.message.replace('Firebase: ', ''));
+      }
     } finally {
       setLoading(false);
     }
