@@ -15,9 +15,9 @@ const PORT = process.env.PORT || 8080;
 const CANDIDATE_MODELS = [
   process.env.GEMINI_MODEL,
   'gemini-3.6-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash'
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
+  'gemini-3.7-flash'
 ].filter(Boolean);
 
 async function callWithModelFallback(genAI, modelOptions, callback) {
@@ -29,7 +29,21 @@ async function callWithModelFallback(genAI, modelOptions, callback) {
     } catch (err) {
       console.warn(`[Gemini API] Failed with model ${modelName}:`, err.message);
       lastError = err;
-      if (err.message && (err.message.includes('not found') || err.message.includes('404') || err.message.includes('is not supported') || err.message.includes('unknown model'))) {
+      const msg = (err.message || '').toLowerCase();
+      // Error Recovery Matrix: catch recoverable status codes and try next model in fallback ladder
+      if (
+        msg.includes('not found') || 
+        msg.includes('404') || 
+        msg.includes('is not supported') || 
+        msg.includes('unknown model') ||
+        msg.includes('503') ||
+        msg.includes('unavailable') ||
+        msg.includes('429') ||
+        msg.includes('resource_exhausted') ||
+        msg.includes('prepayment credits') ||
+        msg.includes('500') ||
+        msg.includes('internal')
+      ) {
         continue;
       }
       throw err;

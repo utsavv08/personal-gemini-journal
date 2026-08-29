@@ -21,6 +21,19 @@ import GeminiChatDrawer from './components/GeminiChatDrawer';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
+// Strict undefined-stripping for zero-crash database persistence (Directive 6)
+const sanitizeFirestorePayload = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  return Object.entries(obj).reduce((acc, [key, val]) => {
+    if (val !== undefined) {
+      acc[key] = (val && typeof val === 'object' && !val.toDate && !val._methodName) 
+        ? sanitizeFirestorePayload(val) 
+        : val;
+    }
+    return acc;
+  }, {});
+};
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -122,14 +135,14 @@ export default function App() {
 
     try {
       const entryRef = doc(db, 'users', user.uid, 'journals', activeEntry.id);
-      const payload = {
+      const payload = sanitizeFirestorePayload({
         userId: user.uid,
         title: activeEntry.title || 'Untitled Entry',
         content: activeEntry.content || '',
         summary: activeEntry.summary || null,
         cognitiveInsights: activeEntry.cognitiveInsights || null,
         updatedAt: serverTimestamp(),
-      };
+      });
 
       await setDoc(entryRef, payload, { merge: true });
       console.log(`[Storage] Saved successfully to /users/${user.uid}/journals/${activeEntry.id}`);
@@ -192,13 +205,13 @@ export default function App() {
 
       // Auto-save to Firestore
       const entryRef = doc(db, 'users', user.uid, 'journals', activeEntry.id);
-      await setDoc(entryRef, {
+      await setDoc(entryRef, sanitizeFirestorePayload({
         userId: user.uid,
         title: updatedEntry.title,
         content: updatedEntry.content,
         summary: summaryData,
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      }), { merge: true });
 
     } catch (err) {
       console.error("Summarization error:", err);
@@ -242,10 +255,10 @@ export default function App() {
 
       // Auto-save to Firestore
       const entryRef = doc(db, 'users', user.uid, 'journals', activeEntry.id);
-      await setDoc(entryRef, {
+      await setDoc(entryRef, sanitizeFirestorePayload({
         cognitiveInsights: insightsData,
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      }), { merge: true });
 
     } catch (err) {
       console.error("Cognitive insights error:", err);
