@@ -5,8 +5,6 @@
 🌐 **Live Deployed Application (Google Cloud Run):**  
 👉 **[https://personal-gemini-journal-541567487928.europe-west1.run.app/](https://personal-gemini-journal-541567487928.europe-west1.run.app/)**
 
-Public Code Repository: [https://github.com/utsavv08/personal-gemini-journal](https://github.com/utsavv08/personal-gemini-journal)
-
 ---
 
 ## 🛡️ Architecture & Security Compliance
